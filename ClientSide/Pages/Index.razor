@@ -1,0 +1,296 @@
+﻿@page "/"
+@using ClientSide.ViewModels
+@using Common
+@using Syncfusion.Blazor.Popups
+@using System.Text.RegularExpressions
+@using TooltipPosition = Syncfusion.Blazor.Popups.Position
+@using Syncfusion.Blazor.Calendars
+@inject IStopsService _stopsService
+@inject IWagonService _wagonService
+@inject NavigationManager _navigationManager
+@inject IBookingService _bookingService
+@inject IBookingsService _bookingsService
+
+<PageTitle>CE-Rails</PageTitle>
+
+@if (IsLoading)
+{
+    <div class="text-center">
+        <img src="/images/Ball.gif">
+    </div>
+}
+else
+{
+    <EditForm OnValidSubmit="SearchTrain" Model="Search">
+        <DataAnnotationsValidator></DataAnnotationsValidator>
+        <div class="container text-center" style="font-family: Artifika, sans-serif">
+            <div class="row align-items-start m-3 p-2">
+                <div class="form-group col">
+                    <InputText @bind-Value="Search.DepatureStation" class="form-control border-primary me-2" placeholder="Depature Station"></InputText>
+                    <ValidationMessage For="() => Search.DepatureStation"></ValidationMessage>
+                </div>
+                <div class="col-1">
+                    <button class="btn btn-danger" type="button" @onclick="ChangeStations">
+                        <span class="oi oi-transfer"></span>
+                    </button>
+                </div>
+                <div class="form-group col">
+                    <InputText @bind-Value="Search.ArrivalStation" class="form-control border-primary me-2" placeholder="Arrival Station"></InputText>
+                    <ValidationMessage For="() => Search.ArrivalStation"></ValidationMessage>
+                </div>
+            </div>
+            <div class="row align-items-start m-1 p-2">
+                <div class="col">
+                    <button class="btn btn-outline-primary m-1" disabled="@IsDisabled">
+                        <span class="oi oi-magnifying-glass"></span>Search
+                    </button>
+                </div>
+                <div class="col-2">
+                    <label class="m-0 p-1 text-md-start">Travel date:</label>
+                    <SfDatePicker class="m-1" TValue="DateTime" @bind-Value="Search.Date" Min="@todaysDate" Max="@todaysDate.AddDays(90)"></SfDatePicker>
+                    <ValidationMessage For="() => Search.Date"></ValidationMessage>
+                </div>
+                <div class="col">
+                    <button class="btn btn-warning dropdown-toggle m-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size:large"
+                        disabled="@IsDisabled">
+                        <div class="row">
+                            <div class="col-1 text-center m-1"><span class="oi oi-people"></span></div>
+                            <div class="col-2 text-center m-1">
+                                Adults @Search.Adults
+                            </div>
+                            <div class="col-3 text-center m-1">
+                                | Children @Search.Children
+                            </div>
+                            <div class="col-3 text-center m-1">
+                                | Babies @Search.Babies
+                            </div>
+                        </div>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <span class="oi oi-person m-1"></span><b style="font-size:medium">Adult</b>
+                            <InputNumber @bind-Value="Search.Adults" class="dropdown-item">
+                            </InputNumber>
+                            <ValidationMessage For="() => Search.Adults"></ValidationMessage>
+                        </li>
+                        <li>
+                            <SfTooltip Position="TooltipPosition.LeftCenter" Content="Half cost of the ticker price">
+                                <div class="oi oi-person m-1"></div><b style="font-size:medium">Child</b>
+                            </SfTooltip>
+                            <InputNumber @bind-Value="Search.Children" class="dropdown-item">
+                            </InputNumber>
+                            <ValidationMessage For="() => Search.Children"></ValidationMessage>
+                        </li>
+                        <li>
+                            <SfTooltip Position="TooltipPosition.LeftCenter" Content="Half cost of the ticker price">
+                                <div class="oi oi-person m-1"></div><b style="font-size:medium">Baby</b>
+                            </SfTooltip>
+                            <InputNumber @bind-Value="Search.Babies" class="dropdown-item">
+                            </InputNumber>
+                            <ValidationMessage For="() => Search.Babies"></ValidationMessage>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+
+    <div class="align-items-center p-5 m-3">
+        @if (IsLoading)
+        {
+            <div class="text-center">
+                <img src="/images/Ball.gif">
+            </div>
+        }
+        else
+        {
+            if (SearchedTrains.Any())
+            {
+                <h2>Available tickets:</h2>
+                <ul class="bg-light" style="border:2px solid; border-radius:5px; border-color:royalblue">
+                    @foreach (var train in SearchedTrains)
+                    {
+                        <li>
+                            <div class="row p-3 m-2" style="font-size:x-large">
+                                <div class="col-3">
+                                    <b class="text-center">@train.Train.Name</b>
+                                </div>
+                                <div class="col-3">
+                                    <p class="text-center">@train.DepatureStop.Name</p> <i>@train.DepatureStop.DepatureTime.ToString("HH:mm")</i>
+                                    <br>
+                                    <i style="font-size:large">Travel time: @train.TravelTime.ToString("HH:mm") (hours)</i>
+                                </div>
+                                <div class="col-3">
+                                    <p class="text-center">@train.ArrivalStop.Name</p> <i>@train.ArrivalStop.ArrivalTime.ToString("HH:mm")</i>
+                                    <br>
+                                    <SfTooltip Position="TooltipPosition.BottomCenter" Content="cost: economy/business/elite">
+                                        <i style="font-size:large">Cost <b>( <span class="oi oi-euro" /> )</b>: @String.Format("{0:0.00}", train.Cost[0]) / @String.Format("{0:0.00}", train.Cost[1]) / @String.Format("{0:0.00}", train.Cost[2])</i>
+                                    </SfTooltip>
+                                </div>
+                                <div class="col-3">
+                                    <button class="btn btn-danger btn-lg" type="button" @onclick="() => BookTicket(train)">Book</button>
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <h2>@SearchMessage</h2>
+            }
+        }
+    </div>
+}
+
+@code {
+    public SearchVM Search { get; set; } = new() { Adults = 1 };
+    public bool IsLoading { get; set; } = false;
+    public bool IsLoadingList { get; set; } = false;
+    public bool IsDisabled { get; set; } = false;
+    public string SearchMessage { get; set; } = "";
+
+    public IEnumerable<StopDTO> Stops { get; set; } = new List<StopDTO>();
+    public List<SearchResultVM> SearchedTrains { get; set; } = new List<SearchResultVM>();
+
+    public IEnumerable<WagonDTO> Wagons { get; set; } = new List<WagonDTO>();
+
+    private DateTime todaysDate = DateTime.Now;
+
+    public IEnumerable<BookingDTO> BookingList = new List<BookingDTO>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        Stops = await _stopsService.GetAll();
+        Wagons = await _wagonService.GetAll();
+        BookingList = await _bookingsService.GetAll();
+        IsLoading = false;
+    }
+
+    public void ChangeStations(MouseEventArgs args)
+    {
+        string station = Search.ArrivalStation;
+        Search.ArrivalStation = Search.DepatureStation;
+        Search.DepatureStation = station;
+    }
+
+    private async Task SearchTrain()
+    {
+        IsDisabled = true;
+        IsLoadingList = true;
+        SearchedTrains.Clear();
+        StateHasChanged();
+
+        int trainId, i = 0;
+        while (i < Stops.Count() - 1)
+        {
+            StopDTO firstStop = Stops.ToList()[i];
+            trainId = firstStop.TrainId;
+            List<StopDTO> trainStops = new List<StopDTO>();
+
+            List<BookingDTO> trainsBookings = BookingList.Where(b => b.BookingHeaderDTO.TrainId == trainId && b.BookingHeaderDTO.Date.Equals(Search.Date)).ToList();
+            string day = Search.Date.DayOfWeek.ToString();
+
+            if (Regex.IsMatch(firstStop.Train.Schedule, $"({Search.Date.DayOfWeek.ToString()})") || (firstStop.Train.Schedule.Equals("Even days") && SD.EvenDays.Where(d => d.Equals(Search.Date.DayOfWeek.ToString())).Count() == 1)
+            || (firstStop.Train.Schedule.Equals("Odd days") && SD.OddDays.Where(d => d.Equals(Search.Date.DayOfWeek.ToString())).Count() == 1) || (firstStop.Train.Schedule.Equals("Weekdays") && SD.Weekdays.Where(d => d.Equals(Search.Date.DayOfWeek.ToString())).Count() == 1))
+            {
+                List<WagonDTO> trainWagons = Wagons.Where(w => w.TrainId == trainId).ToList();
+                int allSeats = 0;
+                foreach (var wagon in trainWagons)
+                {
+                    allSeats += wagon.NumberOfSeats;
+                }
+                if ((trainsBookings.Count + Search.Babies + Search.Adults + Search.Babies) <= allSeats)
+                {
+                    trainStops = Stops.Where(s => s.TrainId == trainId).ToList();
+                    CheckStops(trainStops);
+                    i += trainStops.Count;
+                }
+            }
+            trainStops = Stops.Where(s => s.TrainId == trainId).ToList();
+            i += trainStops.Count;
+        }
+
+        if (!SearchedTrains.Any())
+        {
+            SearchMessage = "Nothing found";
+        }
+        IsDisabled = false;
+        IsLoadingList = false;
+        StateHasChanged();
+    }
+
+    private void CheckStops(List<StopDTO> trainStops)
+    {
+        int todaysTime = -1;
+
+        if (Search.Date.Date.CompareTo(DateTime.Now.Date) == 0)
+        {
+            todaysTime = Search.Date.AddHours(DateTime.Now.Hour).AddMinutes(DateTime.Now.Minute).TimeOfDay.CompareTo(trainStops[0].DepatureTime.TimeOfDay);
+        }
+
+        for (int i = 0; i < trainStops.Count; i++)
+        {
+            for (int j = i + 1; j < trainStops.Count; j++)
+            {
+                if (j == trainStops.Count)
+                {
+                    break;
+                }
+                if (trainStops[i].Name.ToLower().Equals(Search.DepatureStation.ToLower()) && trainStops[j].Name.ToLower().Equals(Search.ArrivalStation.ToLower())
+                && todaysTime == -1)
+                {
+                    SearchResultVM result = new SearchResultVM()
+                        {
+                            Train = trainStops[i].Train,
+                            DepatureStop = trainStops[i],
+                            ArrivalStop = trainStops[j],
+                            TravelTime = Convert.ToDateTime((trainStops[j].ArrivalTime - trainStops[i].DepatureTime).ToString()),
+                            Adults = Search.Adults,
+                            Children = Search.Children,
+                            Babies = Search.Babies,
+                            Date = Search.Date
+                        };
+                    if (trainStops[i].Train.Type.Equals("high-speed"))
+                    {
+                        if (Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("economy")) != null)
+                            result.Cost[0] = Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("economy"))!.Price * SD.PricePerMin;
+                        else
+                            result.Cost[0] = default;
+                        if (Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("business")) != null)
+                            result.Cost[1] = Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("business"))!.Price * SD.PricePerMin;
+                        else
+                            result.Cost[1] = default;
+                        if (Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("elite")) != null)
+                            result.Cost[2] = Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("elite"))!.Price * SD.PricePerMin;
+                        else
+                            result.Cost[2] = default;
+                    }
+                    else
+                    {
+                        if (Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("economy")) != null)
+                            result.Cost[0] = Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("economy"))!.Price;
+                        else
+                            result.Cost[0] = default;
+                        if (Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("business")) != null)
+                            result.Cost[1] = Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("business"))!.Price;
+                        else
+                            result.Cost[1] = default;
+                        if (Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("elite")) != null)
+                            result.Cost[2] = Wagons.FirstOrDefault(w => w.TrainId == trainStops[i].TrainId && w.Type.Equals("elite"))!.Price;
+                        else
+                            result.Cost[2] = default;
+                    }
+                    SearchedTrains.Add(result);
+                }
+            }
+        }
+    }
+
+    private async void BookTicket(SearchResultVM result)
+    {
+        await _bookingService.AddBooking(result);
+        _navigationManager.NavigateTo("booking");
+    }
+}

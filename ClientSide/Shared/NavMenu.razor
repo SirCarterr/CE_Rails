@@ -1,0 +1,111 @@
+﻿@inject IJSRuntime _jsRuntime
+@inject NavigationManager _navigationManager
+@inject AuthenticationStateProvider _authenticationStateProvider
+
+<nav class="navbar navbar-expand-lg bg-primary" style="font-family: Artifika, sans-serif">
+    <div class="container">
+        <a class="navbar-brand h2 text-light" href="#">
+            CE-Rails
+        </a>
+        <div class="collapse navbar-collapse justify-content-lg-between">
+            <ul class="navbar-nav mb-2 mb-lg-0 m-2">
+                <li class="nav-item">
+                    <NavLink class="btn" style="font-size:x-large; color:azure" @onclick="() => UserBookings()">
+                        My Bookings
+                    </NavLink>
+                </li>
+            </ul>
+
+            <form class="d-flex p-0 m-1">
+                <AuthorizeView>
+                    <NotAuthorized>
+                        <div class="dropdown">
+                            <button class="btn btn-light dropdown-toggle m-4" type="button" data-bs-toggle="dropdown" style="font-size:large">
+                                Account <span class="oi oi-account-login"></span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><button type="button" class="dropdown-item text-center" @onclick="() => OpenRegisterDialog()">Sing Up</button></li>
+                                <li><button type="button" class="dropdown-item text-center" @onclick="() => OpenLoginDialog()">Sing In</button></li>
+                            </ul>
+                        </div>
+                    </NotAuthorized>
+                    <Authorized>
+                        <div class="dropdown">
+                            <button class="btn btn-light dropdown-toggle m-4" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size:large">
+                                <b>@context.User.Identity!.Name</b>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><NavLink class="dropdown-item text-center" href="/logout">Sing Out <span class="oi oi-account-logout"></span></NavLink></li>
+                            </ul>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            </form>
+        </div>
+    </div>
+</nav>
+
+@if (IsOpenRegisterDialog && !IsOpenLoginDialog)
+{
+    <ClientSide.Pages.Authentication.Register OnClose="@OnRegisterDialogClose"></ClientSide.Pages.Authentication.Register>
+}
+@if (IsOpenLoginDialog && !IsOpenRegisterDialog)
+{
+    <ClientSide.Pages.Authentication.Login OnClose="@OnLoginDialogClose"></ClientSide.Pages.Authentication.Login>
+}
+
+
+
+@code {
+    public bool IsOpenRegisterDialog { get; set; } = false;
+    public bool IsOpenLoginDialog { get; set; } = false;
+
+    private async void OnRegisterDialogClose(bool accepted)
+    {
+        IsOpenRegisterDialog = false;
+        StateHasChanged();
+        if (accepted)
+            await _jsRuntime.InvokeVoidAsync("ShowSwalToast", "Account created");
+    }
+
+    private void OpenRegisterDialog()
+    {
+        IsOpenRegisterDialog = true;
+        StateHasChanged();
+    }
+
+    private async void OnLoginDialogClose(bool accepted)
+    {
+        IsOpenLoginDialog = false;
+        StateHasChanged();
+        if (accepted)
+            await _jsRuntime.InvokeVoidAsync("ShowSwalToast", "Signed in successfully");
+    }
+
+    private void OpenLoginDialog()
+    {
+        IsOpenLoginDialog = true;
+        StateHasChanged();
+    }
+
+    private async void UserBookings()
+    {
+        var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+
+        if (authState.User.Identity != null)
+        {
+            if (authState.User.Identity.IsAuthenticated)
+            {
+                _navigationManager.NavigateTo("/userbookings/" + authState.User.Claims.FirstOrDefault(c => c.Type.ToString() == "Id")!.Value);
+            }
+            else
+            {
+                await _jsRuntime.InvokeVoidAsync("ShowSwal", "notAuth", "Authorize to see your bookings");
+            }
+        }
+        else
+        {
+            await _jsRuntime.InvokeVoidAsync("ShowSwal", "notAuth", "Authorize to see your bookings");
+        }
+    }
+}

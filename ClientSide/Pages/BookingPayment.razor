@@ -1,0 +1,109 @@
+﻿@page "/payment/{BookingId:int}"
+@page "/payment"
+@using Blazored.LocalStorage
+@using Common
+@inject IBookingsService _bookingsService
+@inject IJSRuntime _jsRuntime
+@inject IPaymentService _paymentService
+@inject ILocalStorageService _localStorage
+
+<div class="container justify-items-center m-5 p-3 text-center" style="font-family: Artifika, sans-serif; font-size:x-large">
+    @if (IsLoading)
+    {
+        <div class="text-center">
+            <img src="/images/Ball.gif">
+        </div>
+    }
+    else
+    {
+        @if (IsBookingPaid)
+        {
+            <h1 class="text-success">Paid!</h1>
+            <br />
+            <h3 class="text-warning">Your booking code is: <b>@BookingDTO.BookingHeaderDTO.BookingCode</b></h3>
+            <br />
+            <p>You can pick up your tickets at station. Have a good trip!</p>
+        }
+        else if(BookingId != 0)
+        {
+            <h1 class="text-success">Booked!</h1>
+            <br />
+            <h3 class="text-warning">Your booking code is: @BookingDTO.BookingHeaderDTO.BookingCode</h3>
+            <br />
+            <p>You can either pay for tickets at station within 3 days and take them there or online right now</p>
+            <br />
+            <button class="btn btn-outline-success btn-lg" @onclick="() => HandeCheckout()">Pay now</button>
+        }
+        else
+        {
+            <h1>Oops...</h1>
+            <br />
+            <p>Something got wrong. Check the support page to find the problem</p>
+        }
+    }
+</div>
+
+
+@code {
+    [Parameter]
+    public int BookingId { get; set; }
+
+    public bool IsLoading { get; set; } = false;
+    public BookingDTO BookingDTO { get; set; } = new();
+
+    public bool IsBookingPaid { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        if (BookingId != 0)
+        {
+            BookingDTO =  await _bookingsService.Get(BookingId);
+        }
+        else
+        {
+            BookingDTO = await _localStorage.GetItemAsync<BookingDTO>(SD.Local_BookingDetails);
+
+            IsBookingPaid = await _bookingsService.StatusPaid(BookingDTO);
+
+            if (IsBookingPaid)
+            {
+                await _localStorage.RemoveItemAsync(SD.Local_BookingDetails);
+                await _localStorage.RemoveItemAsync(SD.Booking);
+            }
+        }
+
+        IsLoading = false;
+    }
+
+    private async Task HandeCheckout()
+    {
+        try
+        {
+            IsLoading = true;
+
+            var payment = new StripePaymentDTO()
+                {
+                    Booking = BookingDTO
+                };
+
+            var result = await _paymentService.Checkout(payment);
+
+            var StripeSessionAndPI = result.Data.ToString().Split(';');
+
+            BookingDTO.BookingHeaderDTO.SessionId = StripeSessionAndPI[0];
+            BookingDTO.BookingHeaderDTO.PaymentIntentId = StripeSessionAndPI[1];
+
+            await _bookingsService.Update(BookingDTO);
+
+            await _localStorage.SetItemAsync(SD.Local_BookingDetails, BookingDTO);
+
+            await _jsRuntime.InvokeVoidAsync("redirectToCheckout", BookingDTO.BookingHeaderDTO.SessionId);
+        }
+        catch (Exception e)
+        {
+            await _jsRuntime.InvokeVoidAsync("ShowSwal", "error", e.Message);
+        }
+    }
+}

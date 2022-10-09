@@ -1,0 +1,78 @@
+﻿@using System.Web
+@inject IAuthenticationService _authService
+
+
+<div class="modal fade show" id="ModalLogin" style="display:block; border-color:dimgray" role="dialog" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <EditForm Model="SignInRequest" OnValidSubmit="LoginUser">
+                <DataAnnotationsValidator></DataAnnotationsValidator>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Login</h5>
+                    <button type="button" @onclick="@ModalCancel" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (ShowLoginErrors)
+                    {
+                        <p class="text-center text-danger">@Error</p>
+                    }
+
+                    <div class="py-2">
+                        <InputText @bind-Value="SignInRequest.Username" placeholder="Email..." class="form-control mb-2" />
+                        <ValidationMessage For="(() => SignInRequest.Username)"></ValidationMessage>
+                    </div>
+                    <div class="py-2">
+                        <InputText @bind-Value="SignInRequest.Password" type="password" placeholder="Password..." class="form-control mb-2" />
+                        <ValidationMessage For="(() => SignInRequest.Password)"></ValidationMessage>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (IsProcessing)
+                    {
+                        <NavLink class="btn btn-secondary" disabled>Close</NavLink>
+                        <button type="submit" class="btn btn-primary" disabled>Login</button>
+                    }
+                    else
+                    {
+                        <NavLink class="btn btn-secondary" @onclick="@ModalCancel">Close</NavLink>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    }
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<bool> OnClose { get; set; }
+
+    private SignInRequestDTO SignInRequest { get; set; } = new();
+    public bool IsProcessing { get; set; } = false;
+    public bool ShowLoginErrors { get; set; }
+    public string Error { get; set; }
+
+    private async Task LoginUser()
+    {
+        ShowLoginErrors = false;
+        IsProcessing = true;
+        var result = await _authService.LoginUser(SignInRequest);
+        if (!result.IsAuthSuccessful)
+        {
+            Error = result.ErrorMessage;
+            ShowLoginErrors = true;
+        }
+        IsProcessing = false;
+        await ModalOk();
+    }
+
+    private Task ModalCancel()
+    {
+        return OnClose.InvokeAsync(false);
+    }
+    
+    private Task ModalOk()
+    {
+        return OnClose.InvokeAsync(true);
+    }
+}

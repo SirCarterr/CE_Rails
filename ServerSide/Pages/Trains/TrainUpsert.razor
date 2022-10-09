@@ -1,0 +1,265 @@
+﻿@page "/trainlist/create"
+@page "/trainlist/edit/{id:int}"
+@inject ITrainRepository _trainRepository
+@inject IStopRepository _stopRepository
+@inject IWagonRepository _wagonRepository
+@inject NavigationManager _navigationManager
+@inject IJSRuntime _jsRuntime
+
+<h3>@Title train</h3>
+
+<div class="form-control col-10">
+    <EditForm Model="Train" OnValidSubmit="UpsertTrain">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+            <label class="m-0">Train name:</label>
+            <InputText @bind-Value="Train.Name" class="form-control"></InputText>
+            <ValidationMessage For="() => Train.Name"></ValidationMessage>
+        </div>
+        <br />
+        <div class="form-group">
+            <label class="m-0">Schedule: (input the days of week or they variation: Friday, Odd days, eg.)</label>
+            <InputText @bind-Value="Train.Schedule" class="form-control"></InputText>
+            <ValidationMessage For="() => Train.Schedule"></ValidationMessage>
+        </div>
+        <br />
+        <div class="form-group">
+            <label class="m-1">Type: </label>
+            <InputSelect @bind-Value="Train.Type" class="form-select p-2">
+                <option value="0" disabled="disabled" selected>--Select Type--</option>
+                <option value="@trainType[0]">High-speed</option>
+                <option value="@trainType[1]">Intercity</option>
+            </InputSelect>
+            <ValidationMessage For="() => Train.Type"></ValidationMessage>
+        </div>
+        <br />
+        <div class="content-wrapper">
+            <h5 class="m-1">Train stops:</h5>
+            <SfGrid @ref="stopsDTOGrid" TValue="StopDTO" DataSource="Stops" AllowPaging="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel" })" AllowSorting="true">
+                <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+                <GridEvents OnActionBegin="StopsHanlder" TValue="StopDTO"></GridEvents>
+                <GridColumns>
+                    <GridColumn Field="@nameof(StopDTO.Id)" IsPrimaryKey="true" Visible="false" HeaderText="Id" Width="10"></GridColumn> 
+                    <GridColumn Field="@nameof(StopDTO.Name)" HeaderText="Stop Name" Width="100"></GridColumn> 
+                    <GridColumn Field="@nameof(StopDTO.ArrivalTime)" HeaderText="Arrival Time" Format="HH:mm" Width="60">
+                        <EditTemplate Context="grid_context1">
+                            <Syncfusion.Blazor.Calendars.SfTimePicker TValue="DateTime"
+                            @bind-Value="((grid_context1 as StopDTO).ArrivalTime)">
+
+                        </Syncfusion.Blazor.Calendars.SfTimePicker>
+                        </EditTemplate>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(StopDTO.DepatureTime)" HeaderText="Depature Time" Format="HH:mm" Width="60">
+                        <EditTemplate Context="grid_context2">
+                            <Syncfusion.Blazor.Calendars.SfTimePicker TValue="DateTime"
+                            @bind-Value="((grid_context2 as StopDTO).DepatureTime)">
+
+                            </Syncfusion.Blazor.Calendars.SfTimePicker>
+                        </EditTemplate>
+                    </GridColumn>
+                </GridColumns>
+            </SfGrid>
+            <br />
+            <h5 class="m-1">Train wagons:</h5>
+            <SfGrid @ref="wagonsDTOGrid" TValue="WagonDTO" DataSource="Wagons" AllowPaging="true" 
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel" })" AllowSorting="true">
+                <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+                <GridEvents OnActionBegin="WagonsHandler" TValue="WagonDTO"></GridEvents>
+                <GridColumns>
+                    <GridColumn Field="@nameof(WagonDTO.Id)" IsPrimaryKey="true" Visible="false" HeaderText="Id" Width="10"></GridColumn>
+                    <GridColumn Field="@nameof(WagonDTO.Number)" HeaderText="Wagon number" EditType="EditType.NumericEdit" Width="20"></GridColumn> 
+                    <GridColumn Field="@nameof(WagonDTO.NumberOfSeats)" HeaderText="Number of seats" Width="60"></GridColumn>
+                    <GridColumn Field="@nameof(WagonDTO.Type)" HeaderText="Wagon type" Width="60">
+                        <EditTemplate Context="grid_context">
+                            <Syncfusion.Blazor.DropDowns.SfDropDownList DataSource="WagonTypes" TValue="string" TItem="string"
+                            @bind-Value="((grid_context as WagonDTO).Type)">
+
+                        </Syncfusion.Blazor.DropDowns.SfDropDownList>
+                        </EditTemplate>
+
+                    </GridColumn>
+                    <GridColumn Field="@nameof(WagonDTO.Price)" HeaderText="Price" Format="C2" Width="60"></GridColumn>
+                </GridColumns>
+            </SfGrid>
+    </div>
+    <div class="row p-1">
+        <p class="text-danger m-0" hidden="@isErrorVisible">@errorMessage</p>
+    </div>
+    <div class="row m-2">
+        <button class="btn btn-primary m-1 col-4">@Title</button>
+        <NavLink href="trainlist" class="btn btn-danger m-1 col-4">Back</NavLink>
+    </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    public string Title { get; set; } = "Add";
+    public bool IsLoading { get; set; }
+    public TrainDTO Train { get; set; } = new();
+    public IEnumerable<StopDTO> Stops { get; set; } = new List<StopDTO>();
+    public IEnumerable<WagonDTO> Wagons { get; set; } = new List<WagonDTO>();
+    private int StopsCount { get; set; }
+    private int WagonsCount { get; set; }
+
+    private List<string> WagonTypes = new List<string>() { "economy", "business", "elite" };
+
+    public SfGrid<StopDTO>? stopsDTOGrid;
+    public SfGrid<WagonDTO>? wagonsDTOGrid;
+
+    private string[] listsErrorMessages = { "Length of stops must be equal or higher than 2", "Length of wagons must be equal or higher than 1" };
+    private string? errorMessage = "";
+    private bool isErrorVisible = false;
+
+    private string[] trainType = { "high-speed", "intercity" };
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (Id == 0)
+            {
+                //create
+                IsLoading = false;
+            }
+            else
+            {
+                //update
+                Title = "Edit";
+                await LoadTrain();
+            }
+        }
+    }
+
+    private async void StopsHanlder(ActionEventArgs<StopDTO> args)
+    {
+        if (Id == 0)
+        {
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Save))
+            {
+                if (args.Action == "Add")
+                {
+                    args.Data.Id = StopsCount++;
+                    args.Index = Stops.Count();
+                }
+            }
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Delete))
+            {
+                StopsCount--;
+            }
+        }
+        else
+        {
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Save))
+            {
+                args.Data.TrainId = Train.Id;
+                if (args.Action == "Add")
+                {
+                    await _stopRepository.Create(args.Data);
+                    await stopsDTOGrid!.Refresh();
+                }
+                if (args.Action == "Edit")
+                {
+                    await _stopRepository.Update(args.Data);
+                }
+            }
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Delete))
+            {
+                await _stopRepository.Delete(args.Data.Id);
+                await stopsDTOGrid!.Refresh();
+            }
+        }
+    }
+
+    private async void WagonsHandler(ActionEventArgs<WagonDTO> args)
+    {
+        if (Id == 0)
+        {
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Save))
+            {
+                if (args.Action == "Add")
+                {
+                    args.Data.Id = WagonsCount++;
+                    args.Index = Wagons.Count();
+                }
+            }
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Delete))
+            {
+                WagonsCount--;
+            }
+        }
+        else
+        {
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Save))
+            {
+                args.Data.TrainId = Train.Id;
+                if (args.Action == "Add")
+                {
+                    await _wagonRepository.Create(args.Data);
+                    await wagonsDTOGrid!.Refresh();
+                }
+                if (args.Action == "Edit")
+                {
+                    await _wagonRepository.Update(args.Data);
+                }
+            }
+            if (args.RequestType.Equals(Syncfusion.Blazor.Grids.Action.Delete))
+            {
+                await _wagonRepository.Delete(args.Data.Id);
+                await wagonsDTOGrid!.Refresh();
+            }
+        }
+    }
+
+    private async Task LoadTrain()
+    {
+        IsLoading = true;
+        StateHasChanged();
+        Train = await _trainRepository.Get(Id);
+        Stops = await _stopRepository.Get(Id);
+        Wagons = await _wagonRepository.Get(Id);
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task UpsertTrain()
+    {
+        if(Stops.Count() < 2)
+        {
+            errorMessage = listsErrorMessages[0];
+        }
+        else if(Wagons.Count() == 0)
+        {
+            errorMessage = listsErrorMessages[1];
+        }
+        else if(Id == 0)
+        {
+            TrainDTO train = await _trainRepository.Create(Train);
+            foreach (var stop in Stops)
+            {
+                stop.TrainId = train.Id;
+                stop.Id = default;
+            }
+            foreach (var wagon in Wagons)
+            {
+                wagon.TrainId = train.Id;
+                wagon.Id = default;
+            }
+
+            await _stopRepository.CreateRange(Stops);
+            await _wagonRepository.CreateRange(Wagons);
+
+            _navigationManager.NavigateTo("trainlist");
+            await _jsRuntime.InvokeVoidAsync("ShowSwal", "success", "Train added!");
+        }
+        else
+        {
+            await _trainRepository.Update(Train);
+            _navigationManager.NavigateTo("trainlist");
+            await _jsRuntime.InvokeVoidAsync("ShowSwal", "success", "Train edited!");
+        }
+    }
+}

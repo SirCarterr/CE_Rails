@@ -1,0 +1,109 @@
+﻿@page "/bookings"
+@using Common
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Data
+@inject IBookingRepository _bookingRepository
+@inject IJSRuntime _jsRuntime
+
+@if (IsLoading)
+{
+    <div class="text-center">
+        <img src="/images/Ball.gif" />
+    </div>
+}
+else
+{
+    <div class="col-lg-12 control-section">
+        <h3 class="card-title">Booking List</h3>
+        <div class="content-wrapper">
+            <div class="row">
+                <SfGrid DataSource="@BookingDTOs" AllowSorting="true" AllowFiltering="true" Height="500" Width="auto" EnableStickyHeader="true">
+                    <GridEditSettings NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+                    <GridColumns>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.Id) HeaderText="ID" Width="20"> </GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.BookingCode) HeaderText="Code" Width="50"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.TrainName) HeaderText="Train" Width="40"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.Date) HeaderText="Date" Format="d" Width="60"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.BookedDate) HeaderText="Booked Date" Format="d" Width="60"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.Name) HeaderText="User Name" Width="40"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.Surname) HeaderText="User Surname" Width="40"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.Email) HeaderText="user Email" Width="50"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.PhoneNumber) HeaderText="user Phone Number" Width="60"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.Status) HeaderText="Status" Width="40"></GridColumn>
+                        <GridColumn Field=@nameof(BookingHeaderDTO.TotalCost) HeaderText="Total Cost" Format="C2" Width="40"></GridColumn>
+                        <GridColumn Width="50">
+                            <Template>
+                                @{
+                                    var bookingDTO = (context as BookingHeaderDTO);
+                                    <SfButton @onclick="() => OnPaidButton(bookingDTO)" Disabled="bookingDTO.Status.Equals(SD.Status_Paid) || bookingDTO.Status.Equals(SD.Status_Refunded)" class="btn btn-primary">Paid</SfButton>
+                                }
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Width="50">
+                            <Template>
+                                @{
+                                    var bookingDTO = (context as BookingHeaderDTO);
+                                    <SfButton @onclick="() => OnRefundButton(bookingDTO)" Disabled="bookingDTO.Status.Equals(SD.Status_Pending) || bookingDTO.Status.Equals(SD.Status_Refunded)" class="btn btn-danger">Refund</SfButton>
+                                }
+                            </Template>
+                        </GridColumn>
+                    </GridColumns>
+                </SfGrid>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    public bool IsLoading { get; set; } = false;
+    public List<BookingHeaderDTO> BookingDTOs { get; set; } = new List<BookingHeaderDTO>();
+    public List<BookingDetailDTO> BookingDetailDTOs { get; set; } = new List<BookingDetailDTO>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        LoadBookings();
+
+        IsLoading = false;
+    }
+
+    private async void LoadBookings()
+    {
+        var Bookings = await _bookingRepository.GetAll();
+
+        foreach (var booking in Bookings)
+        {
+            BookingDTOs.Add(booking.BookingHeaderDTO);
+
+            foreach (var detail in booking.BookingDetailDTOs)
+            {
+                BookingDetailDTOs.Add(detail);
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private Query GetDetailQuery(BookingHeaderDTO value)
+    {
+        return new Query().Where("HeaderId", "equal", value.Id);
+    }
+
+    private async void OnPaidButton(BookingHeaderDTO dTO)
+    {
+        await _bookingRepository.ChangeStatus(dTO.Id, SD.Status_Paid);
+        LoadBookings();
+        StateHasChanged();
+        await _jsRuntime.InvokeVoidAsync("ShowSwal", "success", "Booking is paid");
+    }
+
+    private async void OnRefundButton(BookingHeaderDTO dTO)
+    {
+        await _bookingRepository.ChangeStatus(dTO.Id, SD.Status_Refunded);
+        LoadBookings();
+        StateHasChanged();
+        await _jsRuntime.InvokeVoidAsync("ShowSwal", "success", "Booking is refunded");
+    }
+}

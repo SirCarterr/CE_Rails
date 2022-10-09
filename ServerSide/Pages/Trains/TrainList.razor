@@ -1,0 +1,153 @@
+﻿@page "/trainlist"
+@using Common
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Data
+@using System.Globalization
+@inject ITrainRepository _trainRepository
+@inject IStopRepository _stopRepository
+@inject IWagonRepository _wagonRepository
+@inject NavigationManager _navigationManager
+@inject IJSRuntime _jsRuntime
+@attribute [Authorize(Roles = SD.Role_Admin)]
+
+
+@if (IsLoading)
+{
+    <div class="text-center">
+        <img src="/images/Ball.gif" />
+    </div>
+}
+else
+{
+
+    <div class="col-lg-11 control-section">
+        <h3 class="card-title">Trains List</h3>
+        <div class="content-wrapper">
+            <div class="row">
+                <SfGrid DataSource="@Trains" AllowSorting="true" AllowFiltering="true">
+                    <GridEvents RowSelecting="RowSelectingHandler" TValue="TrainDTO"></GridEvents>
+                    <GridEditSettings NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+                    <GridTemplates>
+                        <DetailTemplate>
+                            @{
+                                var train = (context as TrainDTO);
+                                <p>Wagons of train: @train.Name</p>
+                                <SfGrid TValue="WagonDTO" Query="@GetWagonQuery(train)" DataSource="@TrainWagons" AllowSorting="true">
+                                    <GridEditSettings NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+                                    <GridColumns>
+                                        <GridColumn Field="@nameof(WagonDTO.Number)" HeaderText="Number" Width="40"></GridColumn>
+                                        <GridColumn Field="@nameof(WagonDTO.Type)" HeaderText="Type" Width="100"></GridColumn>
+                                        <GridColumn Field="@nameof(WagonDTO.NumberOfSeats)" HeaderText="Number of seats" Width="60"></GridColumn>
+                                        <GridColumn Field="@nameof(WagonDTO.Price).ToString(new CultureInfo("en-Us"))" HeaderText="Seat price" Format="C2" Width="80"></GridColumn>
+                                    </GridColumns>
+                                </SfGrid>
+                            }
+                        </DetailTemplate>
+                    </GridTemplates>
+                    <GridColumns>
+                        <GridColumn Field=@nameof(TrainDTO.Id) HeaderText="ID" Width="20"> </GridColumn>
+                        <GridColumn Field=@nameof(TrainDTO.Name) HeaderText="Train Name" Width="80"></GridColumn>
+                        <GridColumn Field=@nameof(TrainDTO.Schedule) HeaderText="Schedule" Width="125"></GridColumn>
+                        <GridColumn Field=@nameof(TrainDTO.Type) HeaderText="Type" Width="80"></GridColumn>
+                        <GridColumn Width="50">
+                            <Template>
+                                @{
+                                    var trainDTO = (context as TrainDTO);
+                                    <SfButton @onclick="@((args) => OnEditButton(args, trainDTO))" class="btn btn-info">Edit</SfButton>
+                                }
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Width="50">
+                            <Template>
+                                @{
+                                    var trainDTO = (context as TrainDTO);
+                                    <SfButton @onclick="@((args) => OnDeleteButton(args, trainDTO))" class="btn btn-danger">Delete</SfButton>
+                                }
+                            </Template>
+                        </GridColumn>
+                    </GridColumns>
+                </SfGrid>
+                <div class='e-statustext m-3'>Showing stops of train: <b>@SelectedTrainName</b></div>
+                <SfGrid DataSource="@TrainStops" Query="@(new Query().Where("TrainId", "equal", SelectedTrainID))" AllowSorting="true" AllowFiltering="true">
+                    <GridEditSettings NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+                    <GridColumns>
+                        <GridColumn Field=@nameof(StopDTO.Id) HeaderText="ID" Width="20"> </GridColumn>
+                        <GridColumn Field=@nameof(StopDTO.Name) HeaderText="Name" Width="100"></GridColumn>
+                        <GridColumn Field=@nameof(StopDTO.ArrivalTime) HeaderText="Arrival Time" Width="50" Format="HH:mm"></GridColumn>
+                        <GridColumn Field=@nameof(StopDTO.DepatureTime) HeaderText="Depature time" Width="50" Format="HH:mm"></GridColumn>
+                    </GridColumns>
+                </SfGrid>
+
+                <div class="row m-3">
+                    <NavLink href="trainlist/create" class="btn btn-primary col-3 m-1">Add Train</NavLink>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private bool IsLoading { get; set; } = false;
+    public IEnumerable<TrainDTO> Trains { get; set; } = new List<TrainDTO>();
+    public IEnumerable<StopDTO> TrainStops { get; set; } = new List<StopDTO>();
+    public IEnumerable<WagonDTO> TrainWagons { get; set; } = new List<WagonDTO>();
+
+    public int SelectedTrainID { get; set; }
+    public string SelectedTrainName { get; set; } = "None";
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadTrains();
+        }
+    }
+
+    private async Task LoadTrains()
+    {
+        IsLoading = true;
+        StateHasChanged();
+        Trains = await _trainRepository.GetAll();
+        TrainStops = await _stopRepository.GetAll();
+        TrainWagons = await _wagonRepository.GetAll();
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    private void RowSelectingHandler(RowSelectingEventArgs<TrainDTO> args)
+    {
+        SelectedTrainID = args.Data.Id;
+        SelectedTrainName = args.Data.Name;
+    }
+
+    private Query GetWagonQuery(TrainDTO value)
+    {
+        return new Query().Where("TrainId", "equal", value.Id);
+    }
+
+    private void OnEditButton(MouseEventArgs args, TrainDTO selectedTrain)
+    {
+        _navigationManager.NavigateTo($"trainlist/edit/{selectedTrain.Id}");
+    }
+
+    private async void OnDeleteButton(MouseEventArgs args, TrainDTO selectedTrain)
+    {
+        SelectedTrainID = selectedTrain.Id;
+        DotNetObjectReference<TrainList> objRef = DotNetObjectReference.Create(this);
+        await _jsRuntime.InvokeVoidAsync("ShowSwalConfirm", objRef);
+    }
+
+    [JSInvokable]
+    public void ConfirmDelete() => DeleteObj();
+
+    private async void DeleteObj()
+    {
+        await _jsRuntime.InvokeVoidAsync("ShowSwal", "timer", "Please, wait a little bit...");
+        await _stopRepository.DeleteRange(SelectedTrainID);
+        await _wagonRepository.DeleteRange(SelectedTrainID);
+        await _trainRepository.Delete(SelectedTrainID);
+
+        await LoadTrains();
+    }
+}

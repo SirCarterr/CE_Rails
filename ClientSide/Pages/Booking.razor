@@ -1,0 +1,361 @@
+﻿@page "/booking"
+@using ClientSide.ViewModels
+@using Common
+@using Microsoft.AspNetCore.Authorization
+@*@using Syncfusion.Blazor.Popups
+@using TooltipPosition = Syncfusion.Blazor.Popups.Position*@
+@inject IBookingService _bookingService
+@inject IBookingsService _bookingsService
+@inject IWagonService _wagonService
+@inject IJSRuntime _jsRuntime
+@inject NavigationManager _navigationManager
+@inject AuthenticationStateProvider _authenticationStateProvider
+
+@if (IsLoading)
+{
+    <div class="text-center">
+        <img src="/images/Ball.gif">
+    </div>
+}
+else if (SearchResult == new SearchResultVM())
+{
+    <h2 class="text-center">Oops... Something got wrong</h2>
+}
+else
+{
+    <div class="container" style="font-family: Artifika, sans-serif">
+        <div class="row justify-content-start">
+            <div class="col-6 m-2 p-2">
+                <EditForm Model="BookingDTO.BookingHeaderDTO" OnValidSubmit="BookTickets" class="align-items-center" style="font-size:large">
+                    <DataAnnotationsValidator></DataAnnotationsValidator>
+                    <h3 class="text-center">Fill in your information:</h3>
+                    <div class="form-group m-1">
+                        <p class="form-label">Name</p>
+                        <InputText @bind-Value="BookingDTO.BookingHeaderDTO.Name" class="form-control" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
+                        <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.Name"></ValidationMessage>
+                    </div>
+                    <div class="form-group m-1">
+                        <p class="form-label">Surname</p>
+                        <InputText @bind-Value="BookingDTO.BookingHeaderDTO.Surname" class="form-control" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
+                        <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.Surname"></ValidationMessage>
+                    </div>
+                    <div class="form-group m-1">
+                        <p class="form-label">Email</p>
+                        <InputText @bind-Value="BookingDTO.BookingHeaderDTO.Email" class="form-control" placeholder="email@some.com" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
+                        <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.Email"></ValidationMessage>
+                    </div>
+                    <div class="form-group m-1">
+                        <p class="form-label">Phone number</p>
+                        <InputText @bind-Value="BookingDTO.BookingHeaderDTO.PhoneNumber" class="form-control" placeholder="+380123456789" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
+                        <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.PhoneNumber"></ValidationMessage>
+                    </div>
+                    <div class="form-group m-1">
+                        <p class="form-label">Wagons</p>
+                        <div class="dropdown">
+                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                                Select Wagon
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                @foreach (var wagon in TrainWagons)
+                                {
+                                    <li>
+                                        <p class="dropdown-item" @onclick="() => LoadSeats(wagon)">@wagon.Number - @wagon.Type class</p>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="form-group m-1">
+                        <p class="form-label">Selected seats</p>
+                        <p class="text-sm-start text-danger" hidden="@IsAllNotSelected">You already selected all seats</p>
+                        <p class="text-sm-start text-warning" hidden="@IsSeatsValid">You did not selected the seat(s)!</p>
+                        <table class="table table-bordered border-secondary table-sm">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Wagon Number</th>
+                                    <th scope="col">Seat Number</th>
+                                    <th scope="col">Class</th>
+                                    <th scope="col"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var seat in SelectedSeats)
+                                {
+                                    <tr>
+                                        <td scope="row">@(SelectedSeats.IndexOf(seat) + 1)</td>
+                                        <td>Wagon: @seat.Item1</td>
+                                        <td>Seat: @seat.Item2</td>
+                                        <td>@seat.Item3</td>
+                                        <td>
+                                            <NavLink class="btn btn-outline-danger btn-sm" @onclick="() => RemoveSeat(seat)"><span class="oi oi-trash"></span></NavLink>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-group row m-1">
+                        <br />
+                        <button class="btn btn-primary col-2 m-1">Book</button>
+                        <NavLink class="btn btn-danger col-2 m-1" href="/">Cancel</NavLink>
+                        <br />
+                    </div>
+                </EditForm>
+            </div>
+
+            <div class="col-5 m-4">
+                <div class="bg-primary text-light p-4 mt-5" style="border: 2px solid; border-color:lightgray; border-radius:5px; font-size:x-large">
+                    <b>Train information:</b>
+                    <br />
+                    <label>Train:</label> <b>@SearchResult.Train.Name</b>
+                    <br />
+                    <label>Depature station:</label> <b>@SearchResult.DepatureStop.Name</b>
+                    <br />
+                    <label>Arrival station:</label> <b>@SearchResult.ArrivalStop.Name</b>
+                    <br />
+                    <label>Date:</label> <b>@SearchResult.Date.ToString("dd/MM/yyyy")</b>
+                    <br />
+                    <label>People:</label> <b>A-@SearchResult.Adults | C-@SearchResult.Children | B-@SearchResult.Babies</b>
+                    <br />
+                    <label>Costs:</label> <b>@String.Format("{0:0.00}", SearchResult.Cost[0])/@String.Format("{0:0.00}", SearchResult.Cost[1])/@String.Format("{0:0.00}", SearchResult.Cost[2])</b>   <span class="oi oi-euro"></span>
+                    <br />
+                </div>
+            </div>
+        </div>
+
+        @if (CurrentWagon != null)
+        {
+            <div>
+                <h3 class="m-3">Wagon: @CurrentWagon?.Number</h3>
+                <table class="w-auto border-primary rounded" style="border: 3px solid">
+                    <tr>
+                        @foreach (var row in SeatRows.Item1)
+                        {
+                            <td>
+                                <button class="btn btn-secondary text-sm-center m-1" style="width:40px; height:40px;border-radius:3px;border:2px"
+                            disabled="@IsSeatBooked(row)" @onclick="() => AddSeat(row)">
+                                    @row
+                                </button>
+                            </td>
+                        }
+                    </tr>
+                    <tr>
+                        @foreach (var row in SeatRows.Item2)
+                        {
+                            <td>
+                                <button class="btn btn-secondary text-sm-center m-1" style="width:40px; height:40px;border-radius:3px;border:2px"
+                            disabled="@IsSeatBooked(row)" @onclick="() => AddSeat(row)">
+                                    @row
+                                </button>
+                            </td>
+                        }
+                    </tr>
+                    <tr>
+                        @foreach (var row in SeatRows.Item2)
+                        {
+                            <td>
+                                <p></p>
+                            </td>
+                        }
+                    </tr>
+                    <tr>
+                        @foreach (var row in SeatRows.Item3)
+                        {
+                            <td>
+                                <button class="btn btn-secondary text-sm-center m-1" style="width:40px; height:40px;border-radius:3px;border:2px"
+                            disabled="@IsSeatBooked(row)" @onclick="() => AddSeat(row)">
+                                    @row
+                                </button>
+                            </td>
+                        }
+                    </tr>
+                </table>
+            </div>
+            <br />
+
+            <br />
+
+            <br />
+        }
+    </div>
+
+}
+
+@code {
+    public bool IsLoading { get; set; } = false;
+    public BookingDTO BookingDTO { get; set; } = new BookingDTO();
+    public SearchResultVM SearchResult { get; set; } = new SearchResultVM();
+
+    public IEnumerable<WagonDTO> TrainWagons { get; set; } = new List<WagonDTO>();
+    public IEnumerable<BookingDTO> BookingList = new List<BookingDTO>();
+
+    public WagonDTO CurrentWagon { get; set; }
+    public (List<int>, List<int>, List<int>) SeatRows { get; set; } = (new List<int>(), new List<int>(), new List<int>());
+
+    public List<(int, int, string)> SelectedSeats = new List<(int, int, string)>();
+    public bool IsAllNotSelected { get; set; } = true;
+    public bool IsSeatsValid { get; set; } = false;
+
+    protected async override Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        SearchResult = await _bookingService.GetBooking();
+        TrainWagons = await _wagonService.Get(SearchResult.Train.Id);
+        BookingList = await _bookingsService.GetSpecific(SearchResult.Train.Id);
+
+        IsLoading = false;
+    }
+
+    public async Task BookTickets()
+    {
+        var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+
+        if (IsSeatsValid)
+        {
+            if (authState.User.Identity!.IsAuthenticated)
+            {
+                int babies = 0, children = 0;
+
+                List<BookingDetailDTO> details = BookingDTO.BookingDetailDTOs.ToList();
+                foreach (var seat in SelectedSeats)
+                {
+                    BookingDetailDTO detail = new BookingDetailDTO()
+                        {
+                            WagonNumber = seat.Item1,
+                            SeatNumber = seat.Item2,
+                        };
+                    if (seat.Item3.Equals("economy"))
+                    {
+                        detail.Cost = SearchResult.Cost[0];
+                    }
+                    else if (seat.Item3.Equals("business"))
+                    {
+                        detail.Cost = SearchResult.Cost[1];
+                    }
+                    else
+                    {
+                        detail.Cost = SearchResult.Cost[2];
+                    }
+
+                    if (babies != SearchResult.Babies)
+                    {
+                        detail.Cost = 0;
+                        detail.TicketType = "baby";
+                        babies++;
+                    }
+                    else if (children != SearchResult.Children)
+                    {
+                        detail.Cost /= 2;
+                        detail.TicketType = "child";
+                        children++;
+                    }
+                    else
+                    {
+                        detail.TicketType = "adult";
+                    }
+
+                    details.Add(new BookingDetailDTO()
+                    {
+                        SeatNumber = detail.SeatNumber,
+                        WagonNumber = detail.WagonNumber,
+                        Cost = detail.Cost,
+                        TicketType = detail.TicketType
+                    });
+                }
+                BookingDTO.BookingDetailDTOs = details;
+
+                BookingDTO.BookingHeaderDTO.Date = SearchResult.Date;
+                BookingDTO.BookingHeaderDTO.Route = SearchResult.DepatureStop.Name + " " + SearchResult.ArrivalStop.Name;
+                BookingDTO.BookingHeaderDTO.TrainId = SearchResult.Train.Id;
+                BookingDTO.BookingHeaderDTO.TrainName = SearchResult.Train.Name;
+                BookingDTO.BookingHeaderDTO.Status = SD.Status_Pending;
+                BookingDTO.BookingHeaderDTO.UserId = authState.User.Claims.FirstOrDefault(c => c.Type.ToString() == "Id").Value;
+                foreach (var detail in BookingDTO.BookingDetailDTOs)
+                {
+                    BookingDTO.BookingHeaderDTO.TotalCost += detail.Cost;
+                }
+
+                BookingDTO dto = await _bookingsService.Create(BookingDTO);
+                if (dto != new BookingDTO())
+                {
+                    _navigationManager.NavigateTo($"payment/{dto.BookingHeaderDTO.Id}");
+                }
+            }
+            else
+            {
+                await _jsRuntime.InvokeVoidAsync("ShowSwal","notAuth", "Please authorize to book the tickets");
+            }
+        }
+        else
+        {
+            IsSeatsValid = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LoadSeats(WagonDTO wagon)
+    {
+        CurrentWagon = wagon;
+        SeatRows.Item1.Clear();
+        SeatRows.Item2.Clear();
+        SeatRows.Item3.Clear();
+
+        for (int i = 0; i < wagon.NumberOfSeats / 3; i++)
+        {
+            SeatRows.Item1.Add(i + 1);
+        }
+        for (int i = wagon.NumberOfSeats / 3; i < wagon.NumberOfSeats - wagon.NumberOfSeats / 3; i++)
+        {
+            SeatRows.Item2.Add(i + 1);
+        }
+        for (int i = wagon.NumberOfSeats - wagon.NumberOfSeats / 3; i < wagon.NumberOfSeats; i++)
+        {
+            SeatRows.Item3.Add(i + 1);
+        }
+
+        StateHasChanged();
+    }
+
+    private bool IsSeatBooked(int number)
+    {
+        foreach (var booking in BookingList)
+        {
+            foreach (var detail in booking.BookingDetailDTOs)
+            {
+                if (detail.WagonNumber == CurrentWagon.Number && detail.SeatNumber == number && booking.BookingHeaderDTO.Date.Date.CompareTo(SearchResult.Date.Date) == 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void AddSeat(int number)
+    {
+        if (SelectedSeats.Count == SearchResult.Adults + SearchResult.Children + SearchResult.Babies)
+        {
+            IsAllNotSelected = false;
+        }
+        else if (!SelectedSeats.Contains((CurrentWagon.Number, number, CurrentWagon.Type)))
+        {
+            SelectedSeats.Add((CurrentWagon.Number, number, CurrentWagon.Type));
+            if (SelectedSeats.Count == SearchResult.Adults + SearchResult.Children + SearchResult.Babies)
+            {
+                IsSeatsValid = true;
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void RemoveSeat((int, int, string) item)
+    {
+        SelectedSeats.Remove(item);
+        IsAllNotSelected = true;
+        IsSeatsValid = false;
+        StateHasChanged();
+    }
+}

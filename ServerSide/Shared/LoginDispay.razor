@@ -1,0 +1,20 @@
+﻿<AuthorizeView>
+    <Authorized>
+        <p class="m-2">Hello, @context.User.Identity!.Name</p>
+        <a class="btn btn-outline-danger btn-sm m-2" href="/Identity/Account/Logout">
+            <span class="oi oi-account-logout" aria-hidden="true"></span> Sign Out
+        </a>
+    </Authorized>
+    <NotAuthorized>
+        <a class="btn btn-outline-primary btn-sm m-2" href="/Identity/Account/Register">
+            <span class="oi oi-account-login" aria-hidden="true"></span> Sign Up
+        </a>
+        <a class="btn btn-outline-primary btn-sm m-2" href="/Identity/Account/Login">
+            <span class="oi oi-account-login" aria-hidden="true"></span> Sign In
+        </a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+
+}

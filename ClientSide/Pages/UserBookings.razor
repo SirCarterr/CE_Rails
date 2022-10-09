@@ -1,0 +1,78 @@
+﻿@page "/userbookings/{userId}"
+@inject IBookingsService _bookingsService
+@using Syncfusion.Blazor.Popups
+@using TooltipPosition = Syncfusion.Blazor.Popups.Position
+
+
+@if (IsProcessing)
+{
+    <div class="text-center">
+        <img src="/images/Ball.gif">
+    </div>
+}
+else
+{
+    <div class="container p-3" style="font-size:x-large">
+        <SfTooltip Content="Tap on booking to see details" Position="TooltipPosition.RightCenter">
+            <h2 class="m-3">Bookings</h2>
+        </SfTooltip>
+        <div class="row">
+            <div class="col-9 m-1">
+                <div class="list-group">
+                    @foreach (var booking in UserBookHistory)
+                    {
+                        <a class="list-group-item list-group-item-action" @onclick="() => GetBookingDetails(booking.BookingHeaderDTO.Id)">
+                            <div class="row">
+                                <p class="col m-1">Train: @booking.BookingHeaderDTO.TrainName</p>
+                                <p class="col m-1"><p>Route:</p> @booking.BookingHeaderDTO.Route</p>
+                                <p class="col m-1">Date: @booking.BookingHeaderDTO.Date.ToString("dd/MM/yyyy")</p>
+                                <p class="col m-1">Status: @booking.BookingHeaderDTO.Status</p>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="col-2 m-1">
+                <div class="list-group">
+                    @foreach (var detail in CurrentBooking.BookingDetailDTOs)
+                    {
+                        <a class="list-group-item p-3 m-2 bg-primary text-light" style="border: 2px solid; border-color:lightgray; border-radius:5px">
+                            <div>
+                                <p class="m-0">Wagon: @detail.WagonNumber</p>
+                                <p class="m-0">Seat: @detail.SeatNumber</p>
+                                <p class="m-0">Ticket: @detail.TicketType</p>
+                                <p class="m-0">Cost: @detail.Cost  <span class="oi oi-euro"></span></p>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public string? UserId { get; set; }
+
+    public bool IsProcessing { get; set; } = false;
+    public IEnumerable<BookingDTO> UserBookHistory { get; set; } = new List<BookingDTO>();
+    public BookingDTO CurrentBooking { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsProcessing = true;
+
+        UserBookHistory = await _bookingsService.GetUser(UserId!);
+        UserBookHistory = UserBookHistory.Reverse();
+
+        IsProcessing = false;
+    }
+
+    private void GetBookingDetails(int id)
+    {
+        CurrentBooking = UserBookHistory.FirstOrDefault(b => b.BookingHeaderDTO.Id == id);
+        StateHasChanged();
+    }
+}
