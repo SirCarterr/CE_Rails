@@ -25,31 +25,49 @@ else
 {
     <div class="container" style="font-family: Artifika, sans-serif">
         <div class="row justify-content-start">
-            <div class="col-6 m-2 p-2">
+            <div class="col-md-5 mx-auto p-5">
+                <div class="bg-primary text-light p-4 mt-md-5" style="border: 2px solid; border-color:lightgray; border-radius:5px; font-size:x-large">
+                    <b>Train information:</b>
+                    <br />
+                    <label>Train:</label> <b>@SearchResult.Train.Name</b>
+                    <br />
+                    <label>Depature station:</label> <b>@SearchResult.DepatureStop.Name</b>
+                    <br />
+                    <label>Arrival station:</label> <b>@SearchResult.ArrivalStop.Name</b>
+                    <br />
+                    <label>Date:</label> <b>@SearchResult.Date.ToString("dd/MM/yyyy")</b>
+                    <br />
+                    <label>People:</label> <b>A-@SearchResult.Adults | C-@SearchResult.Children | B-@SearchResult.Babies</b>
+                    <br />
+                    <label>Costs:</label> <b>@String.Format("{0:0.00}", SearchResult.Cost[0])/@String.Format("{0:0.00}", SearchResult.Cost[1])/@String.Format("{0:0.00}", SearchResult.Cost[2])</b>   <span class="oi oi-euro"></span>
+                    <br />
+                </div>
+            </div>
+            <div class="col-md-6 m-2 p-2">
                 <EditForm Model="BookingDTO.BookingHeaderDTO" OnValidSubmit="BookTickets" class="align-items-center" style="font-size:large">
                     <DataAnnotationsValidator></DataAnnotationsValidator>
                     <h3 class="text-center">Fill in your information:</h3>
-                    <div class="form-group m-1">
+                    <div class="form-group m-md-1 pe-3">
                         <p class="form-label">Name</p>
                         <InputText @bind-Value="BookingDTO.BookingHeaderDTO.Name" class="form-control" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
                         <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.Name"></ValidationMessage>
                     </div>
-                    <div class="form-group m-1">
+                    <div class="form-group m-md-1 pe-3">
                         <p class="form-label">Surname</p>
                         <InputText @bind-Value="BookingDTO.BookingHeaderDTO.Surname" class="form-control" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
                         <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.Surname"></ValidationMessage>
                     </div>
-                    <div class="form-group m-1">
+                    <div class="form-group m-md-1 pe-3">
                         <p class="form-label">Email</p>
                         <InputText @bind-Value="BookingDTO.BookingHeaderDTO.Email" class="form-control" placeholder="email@some.com" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
                         <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.Email"></ValidationMessage>
                     </div>
-                    <div class="form-group m-1">
+                    <div class="form-group m-md-1 pe-3">
                         <p class="form-label">Phone number</p>
                         <InputText @bind-Value="BookingDTO.BookingHeaderDTO.PhoneNumber" class="form-control" placeholder="+380123456789" style="border: 2px solid; border-color:darkgray; border-radius:5px"></InputText>
                         <ValidationMessage For="() => BookingDTO.BookingHeaderDTO.PhoneNumber"></ValidationMessage>
                     </div>
-                    <div class="form-group m-1">
+                    <div class="form-group m-md-1 pe-3">
                         <p class="form-label">Wagons</p>
                         <div class="dropdown">
                             <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
@@ -65,7 +83,7 @@ else
                             </ul>
                         </div>
                     </div>
-                    <div class="form-group m-1">
+                    <div class="form-group m-md-1 pe-3">
                         <p class="form-label">Selected seats</p>
                         <p class="text-sm-start text-danger" hidden="@IsAllNotSelected">You already selected all seats</p>
                         <p class="text-sm-start text-warning" hidden="@IsSeatsValid">You did not selected the seat(s)!</p>
@@ -95,40 +113,21 @@ else
                             </tbody>
                         </table>
                     </div>
-                    <div class="form-group row m-1">
+                    <div class="form-group row m-md-1 pe-3">
                         <br />
-                        <button class="btn btn-primary col-2 m-1">Book</button>
-                        <NavLink class="btn btn-danger col-2 m-1" href="/">Cancel</NavLink>
+                        <button class="btn btn-primary col-sm-2 m-1">Book</button>
+                        <NavLink class="btn btn-danger col-sm-2 m-1" href="/">Cancel</NavLink>
                         <br />
                     </div>
                 </EditForm>
-            </div>
-
-            <div class="col-5 m-4">
-                <div class="bg-primary text-light p-4 mt-5" style="border: 2px solid; border-color:lightgray; border-radius:5px; font-size:x-large">
-                    <b>Train information:</b>
-                    <br />
-                    <label>Train:</label> <b>@SearchResult.Train.Name</b>
-                    <br />
-                    <label>Depature station:</label> <b>@SearchResult.DepatureStop.Name</b>
-                    <br />
-                    <label>Arrival station:</label> <b>@SearchResult.ArrivalStop.Name</b>
-                    <br />
-                    <label>Date:</label> <b>@SearchResult.Date.ToString("dd/MM/yyyy")</b>
-                    <br />
-                    <label>People:</label> <b>A-@SearchResult.Adults | C-@SearchResult.Children | B-@SearchResult.Babies</b>
-                    <br />
-                    <label>Costs:</label> <b>@String.Format("{0:0.00}", SearchResult.Cost[0])/@String.Format("{0:0.00}", SearchResult.Cost[1])/@String.Format("{0:0.00}", SearchResult.Cost[2])</b>   <span class="oi oi-euro"></span>
-                    <br />
-                </div>
             </div>
         </div>
 
         @if (CurrentWagon != null)
         {
-            <div>
-                <h3 class="m-3">Wagon: @CurrentWagon?.Number</h3>
-                <table class="w-auto border-primary rounded" style="border: 3px solid">
+            <div class="overflow-auto">
+                <h3 class="m-3 text-md-end">Wagon: @CurrentWagon?.Number</h3>
+                <table class="w-auto border-primary rounded ms-auto" style="border: 3px solid">
                     <tr>
                         @foreach (var row in SeatRows.Item1)
                         {

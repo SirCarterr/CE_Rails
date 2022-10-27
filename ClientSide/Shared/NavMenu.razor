@@ -3,11 +3,14 @@
 @inject AuthenticationStateProvider _authenticationStateProvider
 
 <nav class="navbar navbar-expand-lg bg-primary" style="font-family: Artifika, sans-serif">
-    <div class="container">
-        <a class="navbar-brand h2 text-light" href="#">
+    <div class="container-lg">
+        <a class="navbar-brand text-light" href="#" style="font-size: x-large">
             CE-Rails
         </a>
-        <div class="collapse navbar-collapse justify-content-lg-between">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-lg-between" id="navbarNav">
             <ul class="navbar-nav mb-2 mb-lg-0 m-2">
                 <li class="nav-item">
                     <NavLink class="btn" style="font-size:x-large; color:azure" @onclick="() => UserBookings()">

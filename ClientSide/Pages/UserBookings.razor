@@ -14,38 +14,35 @@ else
 {
     <div class="container p-3" style="font-size:x-large">
         <SfTooltip Content="Tap on booking to see details" Position="TooltipPosition.RightCenter">
-            <h2 class="m-3">Bookings</h2>
+            <h2 class="m-3 w-auto">Bookings</h2>
         </SfTooltip>
-        <div class="row">
-            <div class="col-9 m-1">
-                <div class="list-group">
-                    @foreach (var booking in UserBookHistory)
-                    {
-                        <a class="list-group-item list-group-item-action" @onclick="() => GetBookingDetails(booking.BookingHeaderDTO.Id)">
-                            <div class="row">
-                                <p class="col m-1">Train: @booking.BookingHeaderDTO.TrainName</p>
-                                <p class="col m-1"><p>Route:</p> @booking.BookingHeaderDTO.Route</p>
-                                <p class="col m-1">Date: @booking.BookingHeaderDTO.Date.ToString("dd/MM/yyyy")</p>
-                                <p class="col m-1">Status: @booking.BookingHeaderDTO.Status</p>
-                            </div>
-                        </a>
-                    }
-                </div>
+        <div class="d-flex flex-column">
+            <div class="list-group">
+                @foreach (var detail in CurrentBooking.BookingDetailDTOs)
+                {
+                    <a class="list-group-item p-3 m-2 bg-primary text-light" style="border: 2px solid; border-color:lightgray; border-radius:5px">
+                        <div class="d-flex justify-content-md-between">
+                            <span class="mx-2">Wagon: @detail.WagonNumber</span>
+                            <span class="mx-2">Seat: @detail.SeatNumber</span>
+                            <span class="mx-2">Ticket: @detail.TicketType</span>
+                            <span class="mx-2">Cost: @String.Format("{0:0.00}", detail.Cost)  <span class="oi oi-euro"></span></span>
+                        </div>
+                    </a>
+                }
             </div>
-            <div class="col-2 m-1">
-                <div class="list-group">
-                    @foreach (var detail in CurrentBooking.BookingDetailDTOs)
-                    {
-                        <a class="list-group-item p-3 m-2 bg-primary text-light" style="border: 2px solid; border-color:lightgray; border-radius:5px">
-                            <div>
-                                <p class="m-0">Wagon: @detail.WagonNumber</p>
-                                <p class="m-0">Seat: @detail.SeatNumber</p>
-                                <p class="m-0">Ticket: @detail.TicketType</p>
-                                <p class="m-0">Cost: @detail.Cost  <span class="oi oi-euro"></span></p>
-                            </div>
-                        </a>
-                    }
-                </div>
+            <div class="list-group">
+                @foreach (var booking in UserBookHistory)
+                {
+                    <a class="list-group-item list-group-item-action" @onclick="() => GetBookingDetails(booking.BookingHeaderDTO.Id)">
+                        <h5 class="text-primary mx-2">Code: @CurrentBooking.BookingHeaderDTO.BookingCode</h5>
+                        <div class="row">
+                            <p class="col-sm m-1">Train: @booking.BookingHeaderDTO.TrainName</p>
+                            <p class="col-sm m-1"><p>Route:</p> @booking.BookingHeaderDTO.Route</p>
+                            <p class="col-sm m-1">Date: @booking.BookingHeaderDTO.Date.ToString("dd/MM/yyyy")</p>
+                            <p class="col-sm m-1">Status: @booking.BookingHeaderDTO.Status</p>
+                        </div>
+                    </a>
+                }
             </div>
         </div>
     </div>
